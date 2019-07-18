@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<body>
+<input type="text" />
+<button id="send">send</button>
+<button id="close">close</button>
+
+<script>
+    const sendButton = document.querySelector('#send');
+    const closeButton = document.querySelector('#close');
+    const input = document.querySelector('input');
+
+    const ws = new WebSocket('ws://localhost:8000/');
+    ws.onopen = (e) => console.log('open', e);
+    ws.onclose = (e) => console.log('close', e);
+    ws.onerror = (e) => console.error('close', e);
+    ws.onmessage = (e) => console.log('message', e);
+
+    sendButton.addEventListener('click', () => {
+        ws.send(input.value);
+    });
+
+    closeButton.addEventListener('click', () => {
+        ws.close();
+    });
+
+</script>
+</body>
+</html>
