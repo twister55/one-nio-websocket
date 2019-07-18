@@ -2,14 +2,15 @@ package one.nio.ws;
 
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import one.nio.http.HttpServer;
 import one.nio.http.HttpServerConfig;
 import one.nio.http.HttpSession;
 import one.nio.http.Request;
 import one.nio.net.Socket;
+import one.nio.ws.message.BinaryMessage;
+import one.nio.ws.message.CloseMessage;
+import one.nio.ws.message.PingMessage;
+import one.nio.ws.message.PongMessage;
 import one.nio.ws.message.TextMessage;
 import one.nio.ws.message.WebSocketMessage;
 
@@ -17,7 +18,6 @@ import one.nio.ws.message.WebSocketMessage;
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class WebSocketServer extends HttpServer {
-    private static final Log log = LogFactory.getLog(WebSocketServer.class);
 
     public WebSocketServer(HttpServerConfig config) throws IOException {
         super(config);
@@ -26,6 +26,26 @@ public class WebSocketServer extends HttpServer {
     @Override
     public WebSocketSession createSession(Socket socket) {
         return new WebSocketSession(socket, this);
+    }
+
+    public void onMessage(WebSocketSession session, PingMessage message) throws IOException {
+        session.write(PongMessage.FRAME);
+    }
+
+    public void onMessage(WebSocketSession session, PongMessage message) throws IOException {
+        // nothing by default
+    }
+
+    public void onMessage(WebSocketSession session, TextMessage message) throws IOException {
+        // nothing by default
+    }
+
+    public void onMessage(WebSocketSession session, BinaryMessage message) throws IOException {
+        // nothing by default
+    }
+
+    public void onMessage(WebSocketSession session, CloseMessage message) throws IOException {
+        session.close(CloseMessage.NORMAL);
     }
 
     @Override
@@ -38,20 +58,17 @@ public class WebSocketServer extends HttpServer {
         super.handleRequest(request, session);
     }
 
-    public void handleMessage(WebSocketSession session, WebSocketMessage message) throws IOException {
-        if (message instanceof TextMessage) {
-            TextMessage textMessage = (TextMessage) message;
-            String text = textMessage.payload();
-            int length = text.length();
-
-            if (length > 10) {
-                text = text.substring(0, 10);
-            }
-
-            log.info("Accepted: TextMessage {'" + text + "}");
-            session.sendMessage(new TextMessage(textMessage.payload().toUpperCase()));
-        } else {
-            log.info("Accepted: " + message);
+    protected void handleMessage(WebSocketSession session, WebSocketMessage message) throws IOException {
+        if (message instanceof PingMessage) {
+            onMessage(session, (PingMessage) message);
+        } else if (message instanceof PongMessage) {
+            onMessage(session, (PongMessage) message);
+        } else if (message instanceof TextMessage) {
+            onMessage(session, (TextMessage) message);
+        } else if (message instanceof BinaryMessage) {
+            onMessage(session, (BinaryMessage) message);
+        } else if (message instanceof CloseMessage) {
+            onMessage(session, (CloseMessage) message);
         }
     }
 
