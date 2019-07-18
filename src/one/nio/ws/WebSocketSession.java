@@ -6,43 +6,24 @@ import one.nio.http.HttpSession;
 import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.net.Socket;
-import one.nio.ws.exception.WebSocketException;
 import one.nio.ws.message.CloseMessage;
+import one.nio.ws.message.Message;
 import one.nio.ws.message.PingMessage;
-import one.nio.ws.message.WebSocketMessage;
 import one.nio.ws.message.WebSocketMessageReader;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class WebSocketSession extends HttpSession {
-
     private final WebSocketServer server;
+    private final WebSocketHandshaker handshaker;
     private final WebSocketMessageReader reader;
-
-    protected volatile boolean upgraded;
 
     public WebSocketSession(Socket socket, WebSocketServer server) {
         super(socket, server);
         this.server = server;
+        this.handshaker = new WebSocketHandshaker(this);
         this.reader = new WebSocketMessageReader(this);
-    }
-
-    public void upgrade(Request request) throws IOException {
-        final String version = request.getHeader("Sec-WebSocket-Version: ");
-
-        if (!"13".equals(version)) {
-            Response response = new Response(Response.BAD_REQUEST, Response.EMPTY);
-            response.addHeader("Sec-WebSocket-Version: 13");
-            sendResponse(response);
-        } else {
-            Response response = new Response(Response.SWITCHING_PROTOCOLS, Response.EMPTY);
-            response.addHeader("Upgrade: websocket");
-            response.addHeader("Connection: Upgrade");
-            response.addHeader("Sec-WebSocket-Accept: " + WebSocketUpgradeUtil.getHash(request));
-            sendResponse(response);
-            this.upgraded = true;
-        }
     }
 
     @Override
@@ -62,7 +43,7 @@ public class WebSocketSession extends HttpSession {
         }
     }
 
-    public void sendMessage(WebSocketMessage message) throws IOException {
+    public void sendMessage(Message message) throws IOException {
         write(message.serialize());
     }
 
@@ -76,12 +57,16 @@ public class WebSocketSession extends HttpSession {
         }
     }
 
+    void write(byte[] bytes) throws IOException {
+        write(bytes, 0, bytes.length);
+    }
+
     @Override
     protected void processRead(byte[] buffer) throws IOException {
-        if (!upgraded) {
+        if (!handshaker.isUpgraded()) {
             super.processRead(buffer);
         } else {
-            final WebSocketMessage message = this.reader.read();
+            final Message message = this.reader.read();
 
             if (message != null) {
                 server.handleMessage(this, message);
@@ -89,22 +74,59 @@ public class WebSocketSession extends HttpSession {
         }
     }
 
+    /*
+     * FIXME нужен отдельный метод в HttpSession чтобы не копипастить
+     *  protected void handleRequest(Request request) {
+     *      server.handleRequest(request, this);
+     *  }
+     */
+    @Override
+    protected void handleParsedRequest() throws IOException {
+        if (handling == null) {
+            handleRequest(handling = parsing);
+        } else if (pipeline.size() < 256) {
+            pipeline.addLast(parsing);
+        } else {
+            throw new IOException("Pipeline length exceeded");
+        }
+        parsing = null;
+        requestBodyOffset = 0;
+    }
+
+    protected void handleRequest(Request request) throws IOException {
+        if (server.isWebSocketURI(request.getURI())) {
+            handshake(request);
+            return;
+        }
+
+        server.handleRequest(request, this);
+    }
+
+    protected void handshake(Request request) throws IOException {
+        try {
+            handshaker.handshake(request);
+        } catch (WebSocketVersionException e) {
+            Response response = new Response(Response.BAD_REQUEST, Response.EMPTY);
+            response.addHeader("Sec-WebSocket-Version: 13");
+            response.addHeader("Content-Length: 0");
+            sendResponse(response);
+        } catch (WebSocketHandshakeException e) {
+            sendError(Response.BAD_REQUEST, e.getMessage());
+        }
+    }
+
     @Override
     public void handleException(Throwable e) {
         if (e instanceof WebSocketException) {
-            if (log.isDebugEnabled()) {
-                log.debug(e);
-            }
-
-            close(((WebSocketException) e).code());
+            handleWebSocketException((WebSocketException) e);
             return;
         }
 
         super.handleException(e);
     }
 
-    void write(byte[] bytes) throws IOException {
-        write(bytes, 0, bytes.length);
+    protected void handleWebSocketException(WebSocketException e) {
+        close(e.code());
     }
 
 }

@@ -3,12 +3,12 @@ package one.nio.ws.message;
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
-public abstract class WebSocketMessage<T> {
+public abstract class Message<T> {
 
     private final WebSocketOpcode opcode;
     private final T payload;
 
-    protected WebSocketMessage(WebSocketOpcode opcode, T payload) {
+    protected Message(WebSocketOpcode opcode, T payload) {
         this.opcode = opcode;
         this.payload = payload;
     }

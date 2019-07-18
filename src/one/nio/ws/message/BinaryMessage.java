@@ -5,7 +5,7 @@ import java.util.Arrays;
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
-public class BinaryMessage extends WebSocketMessage<byte[]> {
+public class BinaryMessage extends Message<byte[]> {
 
     protected BinaryMessage(WebSocketOpcode opcode, byte[] payload) {
         super(opcode, payload);

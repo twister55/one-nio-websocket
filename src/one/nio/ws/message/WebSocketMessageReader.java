@@ -5,8 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import one.nio.net.Session;
-import one.nio.ws.exception.NotAcceptableMessageException;
-import one.nio.ws.exception.WebSocketProtocolException;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
@@ -27,7 +25,7 @@ public class WebSocketMessageReader {
         this.header = new byte[10];
     }
 
-    public WebSocketMessage read() throws IOException {
+    public Message read() throws IOException {
         final Frame frame = readFrame();
 
         if (frame == null) {
@@ -122,9 +120,9 @@ public class WebSocketMessageReader {
         }
     }
 
-    private WebSocketMessage collectFragments(Frame lastFrame) {
+    private Message collectFragments(Frame lastFrame) {
         fragmentedFrame.add(lastFrame);
-        final WebSocketMessage<?> message = fragmentedFrame.toMessage();
+        final Message<?> message = fragmentedFrame.toMessage();
         fragmentedFrame = null;
         return message;
     }
@@ -196,7 +194,7 @@ public class WebSocketMessageReader {
             return payload;
         }
 
-        WebSocketMessage toMessage() {
+        Message toMessage() {
             switch (opcode) {
                 case CLOSE:
                     return new CloseMessage(payload());
@@ -233,7 +231,7 @@ public class WebSocketMessageReader {
             payloadLength += frame.payloadLength;
         }
 
-        WebSocketMessage<?> toMessage() {
+        Message<?> toMessage() {
             byte[] payload = new byte[payloadLength];
 
             for (Frame fragment : fragments) {

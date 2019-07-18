@@ -14,7 +14,7 @@
     const closeButton = document.querySelector('#close');
     const input = document.querySelector('input');
 
-    const ws = new WebSocket('ws://localhost:8000/');
+    const ws = new WebSocket('ws://localhost:8000/echo');
     ws.onopen = (e) => console.log('open', e);
     ws.onclose = (e) => console.log('close', e);
     ws.onerror = (e) => console.error('close', e);

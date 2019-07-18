@@ -1,5 +1,6 @@
-package one.nio.ws.exception;
+package one.nio.ws.message;
 
+import one.nio.ws.WebSocketException;
 import one.nio.ws.message.CloseMessage;
 
 /**

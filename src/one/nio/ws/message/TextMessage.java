@@ -5,7 +5,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
-public class TextMessage extends WebSocketMessage<String> {
+public class TextMessage extends Message<String> {
 
     public TextMessage(CharSequence payload) {
         this(payload.toString());

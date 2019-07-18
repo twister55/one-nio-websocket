@@ -6,7 +6,7 @@ import static one.nio.util.JavaInternals.unsafe;
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
-public class CloseMessage extends WebSocketMessage<Short> {
+public class CloseMessage extends Message<Short> {
     public static short NORMAL = 1000;
     public static short GOING_AWAY = 1001;
     public static short PROTOCOL_ERROR = 1002;
