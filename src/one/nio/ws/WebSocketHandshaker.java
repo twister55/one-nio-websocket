@@ -22,22 +22,9 @@ public class WebSocketHandshaker {
         }
     });
 
-    private final WebSocketSession session;
-
-    protected volatile boolean upgraded;
-
-    public WebSocketHandshaker(WebSocketSession session) {
-        this.session = session;
-    }
-
-    public boolean isUpgraded() {
-        return upgraded;
-    }
-
-    public void handshake(Request request) throws IOException {
+    public void handshake(WebSocketSession session, Request request) throws IOException {
         validate(request);
-        session.sendResponse(getUpgradeResponse(request));
-        upgraded = true;
+        sendUpgradeResponse(session, request);
     }
 
     protected void validate(Request request) {
@@ -58,6 +45,10 @@ public class WebSocketHandshaker {
         if (!isUpgradableRequest(request)) {
             throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing upgrade");
         }
+    }
+
+    protected void sendUpgradeResponse(WebSocketSession session, Request request) throws IOException {
+        session.sendResponse(getUpgradeResponse(request));
     }
 
     protected Response getUpgradeResponse(Request request) {

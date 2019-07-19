@@ -6,9 +6,12 @@ import one.nio.http.HttpSession;
 import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.net.Socket;
+import one.nio.ws.message.BinaryMessage;
 import one.nio.ws.message.CloseMessage;
 import one.nio.ws.message.Message;
 import one.nio.ws.message.PingMessage;
+import one.nio.ws.message.PongMessage;
+import one.nio.ws.message.TextMessage;
 import one.nio.ws.message.WebSocketMessageReader;
 
 /**
@@ -19,10 +22,16 @@ public class WebSocketSession extends HttpSession {
     private final WebSocketHandshaker handshaker;
     private final WebSocketMessageReader reader;
 
+    protected volatile boolean upgraded;
+
     public WebSocketSession(Socket socket, WebSocketServer server) {
+        this(socket, server, new WebSocketHandshaker());
+    }
+
+    public WebSocketSession(Socket socket, WebSocketServer server, WebSocketHandshaker handshaker) {
         super(socket, server);
         this.server = server;
-        this.handshaker = new WebSocketHandshaker(this);
+        this.handshaker = handshaker;
         this.reader = new WebSocketMessageReader(this);
     }
 
@@ -63,13 +72,13 @@ public class WebSocketSession extends HttpSession {
 
     @Override
     protected void processRead(byte[] buffer) throws IOException {
-        if (!handshaker.isUpgraded()) {
+        if (!upgraded) {
             super.processRead(buffer);
         } else {
             final Message message = this.reader.read();
 
             if (message != null) {
-                server.handleMessage(this, message);
+                handleMessage(this, message);
             }
         }
     }
@@ -102,9 +111,24 @@ public class WebSocketSession extends HttpSession {
         server.handleRequest(request, this);
     }
 
+    protected void handleMessage(WebSocketSession session, Message message) throws IOException {
+        if (message instanceof PingMessage) {
+            server.handleMessage(session, (PingMessage) message);
+        } else if (message instanceof PongMessage) {
+            server.handleMessage(session, (PongMessage) message);
+        } else if (message instanceof TextMessage) {
+            server.handleMessage(session, (TextMessage) message);
+        } else if (message instanceof BinaryMessage) {
+            server.handleMessage(session, (BinaryMessage) message);
+        } else if (message instanceof CloseMessage) {
+            server.handleMessage(session, (CloseMessage) message);
+        }
+    }
+
     protected void handshake(Request request) throws IOException {
         try {
-            handshaker.handshake(request);
+            handshaker.handshake(this, request);
+            upgraded = true;
         } catch (WebSocketVersionException e) {
             Response response = new Response(Response.BAD_REQUEST, Response.EMPTY);
             response.addHeader("Sec-WebSocket-Version: 13");
