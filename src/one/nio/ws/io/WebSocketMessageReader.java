@@ -1,172 +1,87 @@
 package one.nio.ws.io;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 import one.nio.net.Session;
 import one.nio.ws.message.BinaryMessage;
+import one.nio.ws.message.CloseMessage;
 import one.nio.ws.message.Message;
+import one.nio.ws.message.PingMessage;
+import one.nio.ws.message.PongMessage;
 import one.nio.ws.message.TextMessage;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class WebSocketMessageReader {
-    private static final int FIRST_HEADER_LENGTH = 2;
-    private static final int MASK_LENGTH = 4;
 
-    private final Session session;
-
-    private Frame frame;
-    private FragmentedFrame fragmentedFrame;
-    private int ptr;
-    private byte[] header;
+    private FrameReader reader;
+    private MessageAggregator aggregator;
 
     public WebSocketMessageReader(Session session) {
-        this.session = session;
-        this.header = new byte[10];
+        this.reader = new FrameReader(session);
     }
 
     public Message read() throws IOException {
-        final Frame frame = readFrame();
+        final Frame frame = reader.read();
 
         if (frame == null) {
+            // not all frame data was read
             return null;
         }
 
-        if (frame.opcode.isControl()) {
-            return frame.toMessage();
+        if (frame.isControl()) {
+            // control messages can not be fragmented
+            // and it can be between 2 fragments of another message
+            // so handle it separately
+            return createMessage(frame);
         }
 
-        if (!frame.fin) {
-            addFragment(frame); // not finished fragmented frame
+        if (!frame.isFin()) {
+            saveFragment(frame); // not finished fragmented frame
             return null;
         }
 
-        if (fragmentedFrame != null) {
-            return collectFragments(frame);
-        }
-
-        return frame.toMessage();
+        return aggregator != null ? collectFragments(frame) : createMessage(frame);
     }
 
-    private Frame readFrame() throws IOException {
-        Frame frame = this.frame;
-        int ptr = this.ptr;
-
-        if (frame == null) {
-            ptr += session.read(header, ptr, FIRST_HEADER_LENGTH - ptr);
-
-            if (ptr < FIRST_HEADER_LENGTH) {
-                this.ptr = ptr;
-                return null;
-            }
-
-            frame = new Frame(header);
-            ptr = 0;
-            this.frame = frame;
+    private void saveFragment(Frame frame) throws IOException {
+        if (aggregator == null) {
+            aggregator = new MessageAggregator(frame.getOpcode());
         }
 
-        if (frame.payload == null) {
-            int len = frame.payloadLength == 126 ? 2 : frame.payloadLength == 127 ? 8 : 0;
-
-            if (len > 0) {
-                ptr += session.read(header, ptr, len - ptr);
-
-                if (ptr < len) {
-                    this.ptr = ptr;
-                    return null;
-                }
-
-                frame.payloadLength = byteArrayToInt(header, len);
-            }
-
-            frame.payload = new byte[frame.payloadLength];
-            ptr = 0;
-        }
-
-        if (frame.mask == null) {
-            ptr += session.read(header, ptr, MASK_LENGTH - ptr);
-
-            if (ptr < MASK_LENGTH) {
-                this.ptr = ptr;
-                return null;
-            }
-
-            frame.mask = new byte[MASK_LENGTH];
-            System.arraycopy(header, 0, frame.mask, 0, MASK_LENGTH);
-            ptr = 0;
-        }
-
-        if (ptr < frame.payloadLength) {
-            ptr += session.read(frame.payload, ptr, frame.payloadLength - ptr);
-
-            if (ptr < frame.payloadLength) {
-                this.frame = frame;
-                this.ptr = ptr;
-                return null;
-            }
-        }
-
-        this.frame = null;
-        this.ptr = 0;
-
-        return frame;
+        aggregator.append(frame);
     }
 
-    private void addFragment(Frame frame) {
-        if (fragmentedFrame == null) {
-            fragmentedFrame = new FragmentedFrame(frame);
-        } else {
-            fragmentedFrame.add(frame);
-        }
-    }
-
-    private Message collectFragments(Frame lastFrame) {
-        fragmentedFrame.add(lastFrame);
-        final Message<?> message = fragmentedFrame.toMessage();
-        fragmentedFrame = null;
+    private Message collectFragments(Frame frame) throws IOException {
+        aggregator.append(frame);
+        final Message<?> message = createMessage(aggregator.getOpcode(), aggregator.getPayload());
+        aggregator = null;
         return message;
     }
 
-    private int byteArrayToInt(byte[] b, int len) {
-        int result = 0;
-        int shift = 0;
-
-        for (int i = len - 1; i >= 0; i--) {
-            result = result + ((b[i] & 0xFF) << shift);
-            shift += 8;
-        }
-
-        return result;
+    private Message createMessage(Frame frame) {
+        return createMessage(frame.getOpcode(), frame.getUnmaskedPayload());
     }
 
-    private static class FragmentedFrame {
-        Opcode opcode;
-        final List<Frame> fragments;
-        int payloadLength;
+    private Message createMessage(Opcode opcode, byte[] payload) {
+        switch (opcode) {
+            case CLOSE:
+                return new CloseMessage(payload);
 
-        FragmentedFrame(Frame frame) {
-            this.fragments = new ArrayList<>();
-            this.fragments.add(frame);
-            this.opcode = frame.opcode;
-            this.payloadLength = frame.payloadLength;
+            case PING:
+                return new PingMessage(payload);
+
+            case PONG:
+                return new PongMessage(payload);
+
+            case BINARY:
+                return new BinaryMessage(payload);
+
+            case TEXT:
+                return new TextMessage(payload);
         }
 
-        void add(Frame frame) {
-            fragments.add(frame);
-            payloadLength += frame.payloadLength;
-        }
-
-        Message<?> toMessage() {
-            byte[] payload = new byte[payloadLength];
-
-            for (Frame fragment : fragments) {
-                System.arraycopy(fragment.payload(), 0, payload, 0, fragment.payloadLength);
-            }
-
-            return opcode == Opcode.BINARY ? new BinaryMessage(payload) : new TextMessage(payload);
-        }
+        throw new IllegalArgumentException("Unsupported opcode: " + opcode);
     }
 }
