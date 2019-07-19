@@ -141,9 +141,8 @@ public class WebSocketSession extends HttpSession {
             reader = new WebSocketMessageReader(this);
             writer = new WebSocketMessageWriter(this);
         } catch (WebSocketVersionException e) {
-            Response response = new Response(Response.BAD_REQUEST, Response.EMPTY);
+            Response response = new Response("426 Upgrade Required", Response.EMPTY); // FIXME add to Response ?
             response.addHeader("Sec-WebSocket-Version: 13");
-            response.addHeader("Content-Length: 0");
             sendResponse(response);
         } catch (WebSocketHandshakeException e) {
             sendError(Response.BAD_REQUEST, e.getMessage());

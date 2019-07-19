@@ -5,8 +5,8 @@ package one.nio.ws;
  */
 public class WebSocketVersionException extends WebSocketHandshakeException {
 
-    public WebSocketVersionException(String s) {
-        super(s);
+    public WebSocketVersionException(String version) {
+        super("Unsupported websocket version " + version);
     }
 
 }

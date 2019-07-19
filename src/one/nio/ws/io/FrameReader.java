@@ -95,11 +95,14 @@ public class FrameReader {
         boolean fin = (b0 & 0x80) > 0;
         int rsv = (b0 & 0x70) >>> 4;
         Opcode opcode = Opcode.valueOf(b0 & 0x0F);
-        boolean masked = (b1 & 0x80) != 0;
         int payloadLength = b1 & 0x7F;
 
         if (rsv != 0) {
             throw new ProtocolException("wrong rsv - " + rsv);
+        }
+
+        if ((b1 & 0x80) == 0) {
+            throw new ProtocolException("not masked");
         }
 
         if (opcode == null) {
@@ -114,11 +117,7 @@ public class FrameReader {
             }
         }
 
-        if (!masked) {
-            throw new ProtocolException("not masked");
-        }
-
-        return new Frame(fin, rsv, opcode, masked, payloadLength);
+        return new Frame(fin, rsv, opcode, true, payloadLength);
     }
 
     private int byteArrayToInt(byte[] b, int len) {
