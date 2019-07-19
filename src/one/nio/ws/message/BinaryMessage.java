@@ -1,27 +1,23 @@
 package one.nio.ws.message;
 
-import java.util.Arrays;
+import one.nio.util.Hex;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class BinaryMessage extends Message<byte[]> {
 
-    protected BinaryMessage(WebSocketOpcode opcode, byte[] payload) {
-        super(opcode, payload);
-    }
-
     public BinaryMessage(byte[] payload) {
-        super(WebSocketOpcode.BINARY, payload);
+        super(payload);
     }
 
     @Override
-    protected byte[] payloadAsBytes() {
+    public byte[] bytesPayload() {
         return payload();
     }
 
     @Override
-    protected String payloadAsString() {
-        return Arrays.toString(payload());
+    public String toString() {
+        return getClass().getSimpleName() + "<" + Hex.toHex(payload()) + ">";
     }
 }

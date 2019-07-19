@@ -1,9 +1,9 @@
-package one.nio.ws.message;
+package one.nio.ws.io;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
-enum WebSocketOpcode {
+enum Opcode {
     CONTINUATION(0x00),
     TEXT(0x01),
     BINARY(0x02),
@@ -11,10 +11,10 @@ enum WebSocketOpcode {
     PING(0x09),
     PONG(0x0A);
 
-    private static final WebSocketOpcode[] VALUES;
+    private static final Opcode[] VALUES;
     static {
-        VALUES = new WebSocketOpcode[11];
-        for (WebSocketOpcode opcode : WebSocketOpcode.values()) {
+        VALUES = new Opcode[11];
+        for (Opcode opcode : Opcode.values()) {
             if (VALUES[opcode.value] != null) {
                 throw new IllegalArgumentException("Opcode " + opcode.value + " already used.");
             }
@@ -24,7 +24,7 @@ enum WebSocketOpcode {
 
     public final byte value;
 
-    WebSocketOpcode(int value) {
+    Opcode(int value) {
         this.value = (byte) value;
     }
 
@@ -32,7 +32,7 @@ enum WebSocketOpcode {
         return (value & 0x08) > 0;
     }
 
-    public static WebSocketOpcode valueOf(int value) {
+    public static Opcode valueOf(int value) {
         return VALUES[value];
     }
 }

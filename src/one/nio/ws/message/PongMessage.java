@@ -6,10 +6,10 @@ import one.nio.http.Response;
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class PongMessage extends BinaryMessage {
-    public static final byte[] FRAME = new PongMessage(Response.EMPTY).serialize();
+    public static final PongMessage EMPTY = new PongMessage(Response.EMPTY);
 
     public PongMessage(byte[] payload) {
-        super(WebSocketOpcode.PING, payload);
+        super(payload);
     }
 
 }

@@ -28,19 +28,19 @@ public class CloseMessage extends Message<Short> {
     }
 
     public CloseMessage(Short code) {
-        super(WebSocketOpcode.CLOSE, code);
+        super(code);
     }
 
     @Override
-    public byte[] payloadAsBytes() {
+    public byte[] bytesPayload() {
         final byte[] result = new byte[2];
         unsafe.putShort(result, byteArrayOffset, Short.reverseBytes(payload()));
         return result;
     }
 
     @Override
-    protected String payloadAsString() {
-        return String.valueOf(payload());
+    public String toString() {
+        return "CloseMessage<" + payload() + ">";
     }
 
 }

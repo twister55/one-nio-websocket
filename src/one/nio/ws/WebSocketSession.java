@@ -2,27 +2,33 @@ package one.nio.ws;
 
 import java.io.IOException;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import one.nio.http.HttpSession;
 import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.net.Socket;
+import one.nio.ws.io.WebSocketMessageReader;
+import one.nio.ws.io.WebSocketMessageWriter;
 import one.nio.ws.message.BinaryMessage;
 import one.nio.ws.message.CloseMessage;
 import one.nio.ws.message.Message;
 import one.nio.ws.message.PingMessage;
 import one.nio.ws.message.PongMessage;
 import one.nio.ws.message.TextMessage;
-import one.nio.ws.message.WebSocketMessageReader;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class WebSocketSession extends HttpSession {
+    protected static final Log log = LogFactory.getLog(WebSocketSession.class);
+
     private final WebSocketServer server;
     private final WebSocketHandshaker handshaker;
-    private final WebSocketMessageReader reader;
 
-    protected volatile boolean upgraded;
+    private WebSocketMessageReader reader;
+    private WebSocketMessageWriter writer;
 
     public WebSocketSession(Socket socket, WebSocketServer server) {
         this(socket, server, new WebSocketHandshaker());
@@ -32,7 +38,6 @@ public class WebSocketSession extends HttpSession {
         super(socket, server);
         this.server = server;
         this.handshaker = handshaker;
-        this.reader = new WebSocketMessageReader(this);
     }
 
     @Override
@@ -43,7 +48,7 @@ public class WebSocketSession extends HttpSession {
 
         try {
             if (wasSelected) {
-                write(PingMessage.FRAME);
+                sendMessage(PingMessage.EMPTY);
             }
 
             return ACTIVE;
@@ -53,7 +58,11 @@ public class WebSocketSession extends HttpSession {
     }
 
     public void sendMessage(Message message) throws IOException {
-        write(message.serialize());
+        if (writer == null) {
+            throw new IllegalArgumentException("Web socket message was sent before handshake");
+        }
+
+        writer.write(message);
     }
 
     public void close(short code) {
@@ -66,16 +75,12 @@ public class WebSocketSession extends HttpSession {
         }
     }
 
-    void write(byte[] bytes) throws IOException {
-        write(bytes, 0, bytes.length);
-    }
-
     @Override
     protected void processRead(byte[] buffer) throws IOException {
-        if (!upgraded) {
+        if (reader == null) {
             super.processRead(buffer);
         } else {
-            final Message message = this.reader.read();
+            final Message message = reader.read();
 
             if (message != null) {
                 handleMessage(this, message);
@@ -112,6 +117,10 @@ public class WebSocketSession extends HttpSession {
     }
 
     protected void handleMessage(WebSocketSession session, Message message) throws IOException {
+        if (log.isDebugEnabled()) {
+            log.debug(message);
+        }
+
         if (message instanceof PingMessage) {
             server.handleMessage(session, (PingMessage) message);
         } else if (message instanceof PongMessage) {
@@ -128,7 +137,9 @@ public class WebSocketSession extends HttpSession {
     protected void handshake(Request request) throws IOException {
         try {
             handshaker.handshake(this, request);
-            upgraded = true;
+
+            reader = new WebSocketMessageReader(this);
+            writer = new WebSocketMessageWriter(this);
         } catch (WebSocketVersionException e) {
             Response response = new Response(Response.BAD_REQUEST, Response.EMPTY);
             response.addHeader("Sec-WebSocket-Version: 13");

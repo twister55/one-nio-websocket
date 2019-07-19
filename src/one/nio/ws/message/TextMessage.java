@@ -16,16 +16,16 @@ public class TextMessage extends Message<String> {
     }
 
     public TextMessage(String payload) {
-        super(WebSocketOpcode.TEXT, payload);
+        super(payload);
     }
 
     @Override
-    protected byte[] payloadAsBytes() {
+    public byte[] bytesPayload() {
         return payload().getBytes(StandardCharsets.UTF_8);
     }
 
     @Override
-    protected String payloadAsString() {
-        return payload();
+    public String toString() {
+        return "TextMessage<" + payload() + ">";
     }
 }

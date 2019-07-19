@@ -30,7 +30,7 @@ public class WebSocketServer extends HttpServer {
     }
 
     public void handleMessage(WebSocketSession session, PingMessage message) throws IOException {
-        session.write(PongMessage.FRAME);
+        session.sendMessage(PongMessage.EMPTY);
     }
 
     public void handleMessage(WebSocketSession session, PongMessage message) throws IOException {
