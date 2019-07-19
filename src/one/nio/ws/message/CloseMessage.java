@@ -24,10 +24,10 @@ public class CloseMessage extends Message<Short> {
     public static short TLS_HANDSHAKE_FAILURE = 1015;
 
     public CloseMessage(byte[] payload) {
-        this(Short.reverseBytes(unsafe.getShort(payload, byteArrayOffset)));
+        this(payload.length == 0 ? null : Short.reverseBytes(unsafe.getShort(payload, byteArrayOffset)));
     }
 
-    public CloseMessage(short code) {
+    public CloseMessage(Short code) {
         super(WebSocketOpcode.CLOSE, code);
     }
 
