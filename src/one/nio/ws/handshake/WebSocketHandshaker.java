@@ -44,6 +44,10 @@ public class WebSocketHandshaker {
         return new WebSocketMessageWriter(session, extensions);
     }
 
+    public List<Extension> getExtensions() {
+        return extensions;
+    }
+
     protected void validate(Request request) {
         final String version = request.getHeader("Sec-WebSocket-Version: ");
 

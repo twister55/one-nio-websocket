@@ -112,6 +112,12 @@ public class PerMessageDeflate implements Extension {
         frame.setRsv(frame.getRsv() + RSV_BITMASK);
     }
 
+    @Override
+    public void close() {
+        inflater.end();
+        deflater.end();
+    }
+
     private byte[] decompress(boolean fin, byte[] payload) throws IOException {
         boolean usedEomBytes = false;
 

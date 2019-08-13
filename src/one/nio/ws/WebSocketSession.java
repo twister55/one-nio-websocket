@@ -9,6 +9,7 @@ import one.nio.http.HttpSession;
 import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.net.Socket;
+import one.nio.ws.extension.Extension;
 import one.nio.ws.handshake.WebSocketHandshakeException;
 import one.nio.ws.handshake.WebSocketHandshaker;
 import one.nio.ws.handshake.WebSocketVersionException;
@@ -140,7 +141,7 @@ public class WebSocketSession extends HttpSession {
             reader = handshaker.createReader(this);
             writer = handshaker.createWriter(this);
         } catch (WebSocketVersionException e) {
-            Response response = new Response("426 Upgrade Required", Response.EMPTY); // FIXME add to Response ?
+            Response response = new Response("426 Upgrade Required", Response.EMPTY);
             response.addHeader("Sec-WebSocket-Version: 13");
             sendResponse(response);
         } catch (WebSocketHandshakeException e) {
@@ -156,6 +157,17 @@ public class WebSocketSession extends HttpSession {
         }
 
         super.handleException(e);
+    }
+
+    @Override
+    public void close() {
+        try {
+            for (Extension extension : handshaker.getExtensions()) {
+                extension.close();
+            }
+        } finally {
+            super.close();
+        }
     }
 
     protected void handleWebSocketException(WebSocketException e) {

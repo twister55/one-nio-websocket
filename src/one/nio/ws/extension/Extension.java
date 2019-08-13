@@ -14,4 +14,6 @@ public interface Extension {
     void transformInput(Frame frame) throws IOException;
 
     void transformOutput(Frame frame) throws IOException;
+
+    void close();
 }
