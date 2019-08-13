@@ -3,7 +3,7 @@ package one.nio.ws.io;
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
-enum Opcode {
+public enum Opcode {
     CONTINUATION(0x00),
     TEXT(0x01),
     BINARY(0x02),
@@ -30,6 +30,10 @@ enum Opcode {
 
     public boolean isControl() {
         return (value & 0x08) > 0;
+    }
+
+    public boolean isContinuation() {
+        return this == CONTINUATION;
     }
 
     public static Opcode valueOf(int value) {

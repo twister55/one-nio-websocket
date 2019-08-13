@@ -1,13 +1,20 @@
-package one.nio.ws;
+package one.nio.ws.handshake;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 
 import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.util.Base64;
+import one.nio.ws.WebSocketSession;
+import one.nio.ws.extension.Extension;
+import one.nio.ws.extension.PerMessageDeflate;
+import one.nio.ws.io.WebSocketMessageReader;
+import one.nio.ws.io.WebSocketMessageWriter;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
@@ -22,9 +29,19 @@ public class WebSocketHandshaker {
         }
     });
 
+    private List<Extension> extensions;
+
     public void handshake(WebSocketSession session, Request request) throws IOException {
         validate(request);
         sendUpgradeResponse(session, request);
+    }
+
+    public WebSocketMessageReader createReader(WebSocketSession session) {
+        return new WebSocketMessageReader(session, extensions);
+    }
+
+    public WebSocketMessageWriter createWriter(WebSocketSession session) {
+        return new WebSocketMessageWriter(session, extensions);
     }
 
     protected void validate(Request request) {
@@ -48,15 +65,52 @@ public class WebSocketHandshaker {
     }
 
     protected void sendUpgradeResponse(WebSocketSession session, Request request) throws IOException {
-        session.sendResponse(getUpgradeResponse(request));
+        final Response response = createUpgradeResponse(request);
+
+        addExtensions(request, response);
+
+        session.sendResponse(response);
     }
 
-    protected Response getUpgradeResponse(Request request) {
+    protected Response createUpgradeResponse(Request request) {
         Response response = new Response(Response.SWITCHING_PROTOCOLS, Response.EMPTY);
         response.addHeader("Upgrade: websocket");
         response.addHeader("Connection: Upgrade");
         response.addHeader("Sec-WebSocket-Accept: " + getHash(request));
         return response;
+    }
+
+    protected void addExtensions(Request request, Response response) {
+        final List<Extension> extensions = new ArrayList<>();
+        final String extensionsHeader = request.getHeader("Sec-WebSocket-Extensions: ");
+
+        for (ExtensionRequest extensionRequest : ExtensionRequestParser.parse(extensionsHeader)) {
+            Extension extension = negotiateExtension(extensionRequest);
+
+            if (extension != null) {
+                extensions.add(extension);
+            }
+        }
+
+        if (!extensions.isEmpty()) {
+            StringBuilder builder = new StringBuilder("Sec-WebSocket-Extensions: ");
+
+            for (Extension extension : extensions) {
+                extension.appendResponseHeaderValue(builder);
+            }
+
+            response.addHeader(builder.toString());
+        }
+
+        this.extensions = extensions;
+    }
+
+    protected Extension negotiateExtension(ExtensionRequest extensionRequest) {
+        if (PerMessageDeflate.NAME.equals(extensionRequest.getName())) {
+            return PerMessageDeflate.negotiate(extensionRequest.getParameters());
+        }
+
+        return null;
     }
 
     private boolean isUpgradableRequest(Request request) {

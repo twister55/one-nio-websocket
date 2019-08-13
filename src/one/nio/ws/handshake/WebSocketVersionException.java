@@ -1,4 +1,4 @@
-package one.nio.ws;
+package one.nio.ws.handshake;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>

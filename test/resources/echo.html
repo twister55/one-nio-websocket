@@ -10,6 +10,7 @@
 <button id="close">close</button>
 
 <script>
+    let lastText;
     const sendButton = document.querySelector('#send');
     const closeButton = document.querySelector('#close');
     const input = document.querySelector('input');
@@ -18,10 +19,12 @@
     ws.onopen = (e) => console.log('open', e);
     ws.onclose = (e) => console.log('close', e);
     ws.onerror = (e) => console.error('close', e);
-    ws.onmessage = (e) => console.log('message', e);
+    ws.onmessage = (e) => {
+      console.log('message', e.data.length, lastText.length, e.data === lastText, e);
+    };
 
     sendButton.addEventListener('click', () => {
-        ws.send(input.value);
+        ws.send(lastText = input.value);
     });
 
     closeButton.addEventListener('click', () => {

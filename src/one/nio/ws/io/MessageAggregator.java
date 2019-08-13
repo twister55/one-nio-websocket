@@ -15,8 +15,8 @@ public class MessageAggregator {
         this.stream = new ByteArrayOutputStream();
     }
 
-    public void append(Frame frame) throws IOException {
-        stream.write(frame.getUnmaskedPayload());
+    public void append(byte[] payload) throws IOException {
+        stream.write(payload);
     }
 
     public Opcode getOpcode() {

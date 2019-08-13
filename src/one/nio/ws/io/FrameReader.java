@@ -39,7 +39,7 @@ public class FrameReader {
             this.frame = frame;
         }
 
-        if (frame.payload == null) {
+        if (frame.getPayload() == null) {
             int len = frame.getPayloadLength() == 126 ? 2 : frame.getPayloadLength() == 127 ? 8 : 0;
             int payloadLength = frame.getPayloadLength();
 
@@ -54,12 +54,11 @@ public class FrameReader {
                 payloadLength = byteArrayToInt(header, len);
             }
 
-            frame.setPayloadLength(payloadLength);
             frame.setPayload(new byte[payloadLength]);
             ptr = 0;
         }
 
-        if (frame.mask == null) {
+        if (frame.getMask() == null) {
             ptr += session.read(header, ptr, MASK_LENGTH - ptr);
 
             if (ptr < MASK_LENGTH) {
@@ -67,13 +66,14 @@ public class FrameReader {
                 return null;
             }
 
-            frame.mask = new byte[MASK_LENGTH];
-            System.arraycopy(header, 0, frame.mask, 0, MASK_LENGTH);
+            byte[] mask = new byte[MASK_LENGTH];
+            System.arraycopy(header, 0, mask, 0, MASK_LENGTH);
+            frame.setMask(mask);
             ptr = 0;
         }
 
         if (ptr < frame.getPayloadLength()) {
-            ptr += session.read(frame.payload, ptr, frame.getPayloadLength() - ptr);
+            ptr += session.read(frame.getPayload(), ptr, frame.getPayloadLength() - ptr);
 
             if (ptr < frame.getPayloadLength()) {
                 this.frame = frame;
@@ -97,10 +97,6 @@ public class FrameReader {
         Opcode opcode = Opcode.valueOf(b0 & 0x0F);
         int payloadLength = b1 & 0x7F;
 
-        if (rsv != 0) {
-            throw new ProtocolException("wrong rsv - " + rsv);
-        }
-
         if ((b1 & 0x80) == 0) {
             throw new ProtocolException("not masked");
         }
@@ -117,7 +113,7 @@ public class FrameReader {
             }
         }
 
-        return new Frame(fin, rsv, opcode, true, payloadLength);
+        return new Frame(fin, rsv, opcode, payloadLength);
     }
 
     private int byteArrayToInt(byte[] b, int len) {

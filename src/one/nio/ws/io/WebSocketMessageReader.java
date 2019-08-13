@@ -1,8 +1,13 @@
 package one.nio.ws.io;
 
 import java.io.IOException;
+import java.util.List;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import one.nio.net.Session;
+import one.nio.ws.extension.Extension;
 import one.nio.ws.message.BinaryMessage;
 import one.nio.ws.message.CloseMessage;
 import one.nio.ws.message.Message;
@@ -14,19 +19,22 @@ import one.nio.ws.message.TextMessage;
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class WebSocketMessageReader {
+    private static final Log log = LogFactory.getLog(WebSocketMessageReader.class);
 
-    private FrameReader reader;
+    private final FrameReader reader;
+    private final List<Extension> extensions;
     private MessageAggregator aggregator;
 
-    public WebSocketMessageReader(Session session) {
+    public WebSocketMessageReader(Session session, List<Extension> extensions) {
         this.reader = new FrameReader(session);
+        this.extensions = extensions;
     }
 
     public Message read() throws IOException {
         final Frame frame = reader.read();
 
         if (frame == null) {
-            // not all frame data was read
+            // not all frame data was transformInput
             return null;
         }
 
@@ -38,11 +46,19 @@ public class WebSocketMessageReader {
         }
 
         if (!frame.isFin()) {
-            saveFragment(frame); // not finished fragmented frame
+            // not finished fragmented frame
+            saveFragment(frame);
             return null;
         }
 
-        return aggregator != null ? collectFragments(frame) : createMessage(frame);
+        if (aggregator != null) {
+            saveFragment(frame);
+            Message<?> message = createMessage(aggregator.getOpcode(), aggregator.getPayload());
+            aggregator = null;
+            return message;
+        }
+
+        return createMessage(frame);
     }
 
     private void saveFragment(Frame frame) throws IOException {
@@ -50,18 +66,11 @@ public class WebSocketMessageReader {
             aggregator = new MessageAggregator(frame.getOpcode());
         }
 
-        aggregator.append(frame);
+        aggregator.append(getPayload(frame));
     }
 
-    private Message collectFragments(Frame frame) throws IOException {
-        aggregator.append(frame);
-        final Message<?> message = createMessage(aggregator.getOpcode(), aggregator.getPayload());
-        aggregator = null;
-        return message;
-    }
-
-    private Message createMessage(Frame frame) {
-        return createMessage(frame.getOpcode(), frame.getUnmaskedPayload());
+    private Message createMessage(Frame frame) throws IOException {
+        return createMessage(frame.getOpcode(), getPayload(frame));
     }
 
     private Message createMessage(Opcode opcode, byte[] payload) {
@@ -83,5 +92,15 @@ public class WebSocketMessageReader {
         }
 
         throw new IllegalArgumentException("Unsupported opcode: " + opcode);
+    }
+
+    private byte[] getPayload(Frame frame) throws IOException {
+        frame.unmask();
+
+        for (Extension extension : extensions) {
+            extension.transformInput(frame);
+        }
+
+        return frame.getPayload();
     }
 }

@@ -9,6 +9,9 @@ import one.nio.http.HttpSession;
 import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.net.Socket;
+import one.nio.ws.handshake.WebSocketHandshakeException;
+import one.nio.ws.handshake.WebSocketHandshaker;
+import one.nio.ws.handshake.WebSocketVersionException;
 import one.nio.ws.io.WebSocketMessageReader;
 import one.nio.ws.io.WebSocketMessageWriter;
 import one.nio.ws.message.BinaryMessage;
@@ -117,10 +120,6 @@ public class WebSocketSession extends HttpSession {
     }
 
     protected void handleMessage(WebSocketSession session, Message message) throws IOException {
-        if (log.isDebugEnabled()) {
-            log.debug(message);
-        }
-
         if (message instanceof PingMessage) {
             server.handleMessage(session, (PingMessage) message);
         } else if (message instanceof PongMessage) {
@@ -138,8 +137,8 @@ public class WebSocketSession extends HttpSession {
         try {
             handshaker.handshake(this, request);
 
-            reader = new WebSocketMessageReader(this);
-            writer = new WebSocketMessageWriter(this);
+            reader = handshaker.createReader(this);
+            writer = handshaker.createWriter(this);
         } catch (WebSocketVersionException e) {
             Response response = new Response("426 Upgrade Required", Response.EMPTY); // FIXME add to Response ?
             response.addHeader("Sec-WebSocket-Version: 13");
@@ -160,6 +159,7 @@ public class WebSocketSession extends HttpSession {
     }
 
     protected void handleWebSocketException(WebSocketException e) {
+        log.error(e);
         close(e.code());
     }
 
