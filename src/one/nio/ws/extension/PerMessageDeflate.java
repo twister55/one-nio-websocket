@@ -65,10 +65,14 @@ public class PerMessageDeflate implements Extension {
 
     @Override
     public void appendResponseHeaderValue(StringBuilder builder) {
-        builder.append("permessage-deflate");
+        builder.append(NAME);
 
         if (!clientContextTakeover) {
-            builder.append("; client_no_context_takeover");
+            builder.append("; ").append(CLIENT_NO_CONTEXT_TAKEOVER);
+        }
+
+        if (!serverContextTakeover) {
+            builder.append("; ").append(SERVER_NO_CONTEXT_TAKEOVER);
         }
     }
 
