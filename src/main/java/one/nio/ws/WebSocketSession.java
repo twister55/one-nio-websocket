@@ -1,6 +1,9 @@
 package one.nio.ws;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -10,11 +13,14 @@ import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.net.Socket;
 import one.nio.ws.proto.extension.Extension;
-import one.nio.ws.proto.message.MessageReader;
-import one.nio.ws.proto.message.MessageWriter;
+import one.nio.ws.proto.extension.ExtensionRequest;
+import one.nio.ws.proto.extension.ExtensionRequestParser;
+import one.nio.ws.proto.extension.PerMessageDeflate;
 import one.nio.ws.proto.message.BinaryMessage;
 import one.nio.ws.proto.message.CloseMessage;
 import one.nio.ws.proto.message.Message;
+import one.nio.ws.proto.message.MessageReader;
+import one.nio.ws.proto.message.MessageWriter;
 import one.nio.ws.proto.message.PingMessage;
 import one.nio.ws.proto.message.PongMessage;
 import one.nio.ws.proto.message.TextMessage;
@@ -26,19 +32,23 @@ public class WebSocketSession extends HttpSession {
     protected static final Log log = LogFactory.getLog(WebSocketSession.class);
 
     private final WebSocketServer server;
-    private final WebSocketHandshaker handshaker;
+    private final String baseUri;
 
+    private List<Extension> extensions;
     private MessageReader reader;
     private MessageWriter writer;
 
-    public WebSocketSession(Socket socket, WebSocketServer server) {
-        this(socket, server, new WebSocketHandshaker());
-    }
-
-    public WebSocketSession(Socket socket, WebSocketServer server, WebSocketHandshaker handshaker) {
+    public WebSocketSession(Socket socket, WebSocketServer server, String baseUri) {
         super(socket, server);
         this.server = server;
-        this.handshaker = handshaker;
+        this.baseUri = baseUri;
+    }
+
+    public void sendMessage(Message<?> message) throws IOException {
+        if (writer == null) {
+            throw new IllegalArgumentException("Web socket message was sent before handshake");
+        }
+        writer.write(message);
     }
 
     @Override
@@ -58,31 +68,12 @@ public class WebSocketSession extends HttpSession {
         }
     }
 
-    public void sendMessage(Message message) throws IOException {
-        if (writer == null) {
-            throw new IllegalArgumentException("Web socket message was sent before handshake");
-        }
-
-        writer.write(message);
-    }
-
-    public void close(short code) {
-        try {
-            sendMessage(new CloseMessage(code));
-        } catch (Exception e) {
-            log.warn("Error while sending closing frame. Closing will be not clean", e);
-        } finally {
-            close();
-        }
-    }
-
     @Override
     protected void processRead(byte[] buffer) throws IOException {
         if (reader == null) {
             super.processRead(buffer);
         } else {
-            final Message message = reader.read();
-
+            final Message<?> message = reader.read();
             if (message != null) {
                 handleMessage(this, message);
             }
@@ -108,16 +99,47 @@ public class WebSocketSession extends HttpSession {
         requestBodyOffset = 0;
     }
 
+    @Override
+    public void handleException(Throwable e) {
+        log.error(e);
+        if (e instanceof WebSocketException) {
+            close(((WebSocketException) e).code());
+            return;
+        }
+        super.handleException(e);
+    }
+
+    public void close(short code) {
+        try {
+            sendMessage(new CloseMessage(code));
+        } catch (Exception e) {
+            log.warn("Error while sending closing frame. Closing will be not clean", e);
+        } finally {
+            close();
+        }
+    }
+
+    @Override
+    public void close() {
+        try {
+            for (Extension extension : extensions) {
+                extension.close();
+            }
+        } finally {
+            super.close();
+        }
+    }
+
     protected void handleRequest(Request request) throws IOException {
-        if (server.isWebSocketURI(request.getURI())) {
+        if (Objects.equals(this.baseUri, request.getURI())) {
+            validate(request);
             handshake(request);
             return;
         }
-
         server.handleRequest(request, this);
     }
 
-    protected void handleMessage(WebSocketSession session, Message message) throws IOException {
+    protected void handleMessage(WebSocketSession session, Message<?> message) throws IOException {
         if (message instanceof PingMessage) {
             server.handleMessage(session, (PingMessage) message);
         } else if (message instanceof PongMessage) {
@@ -131,45 +153,70 @@ public class WebSocketSession extends HttpSession {
         }
     }
 
+    protected void validate(Request request) {
+        final String version = request.getHeader(WebSocketHeaders.VERSION);
+        if (!"13".equals(version)) {
+            throw new WebSocketVersionException(version);
+        }
+        if (request.getMethod() != Request.METHOD_GET) {
+            throw new WebSocketHandshakeException("Not a WebSocket handshake request: only GET method supported");
+        }
+        if (request.getHeader(WebSocketHeaders.KEY) == null) {
+            throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing websocket key");
+        }
+        if (!isUpgradableRequest(request)) {
+            throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing upgrade");
+        }
+    }
+
     protected void handshake(Request request) throws IOException {
         try {
-            handshaker.handshake(this, request);
-
-            reader = handshaker.createReader(this);
-            writer = handshaker.createWriter(this);
-        } catch (WebSocketVersionException e) {
-            Response response = new Response("426 Upgrade Required", Response.EMPTY);
-            response.addHeader("Sec-WebSocket-Version: 13");
+            final Response response = createResponse(request);
+            String extensionsHeader = request.getHeader("Sec-WebSocket-Extensions: ");
+            extensions = ExtensionRequestParser.parse(extensionsHeader).stream()
+                    .map(this::createExtension)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!extensions.isEmpty()) {
+                StringBuilder builder = new StringBuilder("Sec-WebSocket-Extensions: ");
+                for (Extension extension : extensions) {
+                    extension.appendResponseHeaderValue(builder);
+                }
+                response.addHeader(builder.toString());
+            }
+            reader = new MessageReader(this, extensions);
+            writer = new MessageWriter(this, extensions);
             sendResponse(response);
         } catch (WebSocketHandshakeException e) {
             sendError(Response.BAD_REQUEST, e.getMessage());
         }
     }
 
-    @Override
-    public void handleException(Throwable e) {
-        if (e instanceof WebSocketException) {
-            handleWebSocketException((WebSocketException) e);
-            return;
+    protected Extension createExtension(ExtensionRequest request) {
+        if (PerMessageDeflate.NAME.equals(request.getName())) {
+            return PerMessageDeflate.negotiate(request.getParameters());
         }
-
-        super.handleException(e);
+        return null;
     }
 
-    @Override
-    public void close() {
+    protected Response createResponse(Request request) {
         try {
-            for (Extension extension : handshaker.getExtensions()) {
-                extension.close();
-            }
-        } finally {
-            super.close();
+            Response response = new Response(Response.SWITCHING_PROTOCOLS, Response.EMPTY);
+            response.addHeader("Upgrade: websocket");
+            response.addHeader("Connection: Upgrade");
+            response.addHeader(WebSocketHeaders.createAcceptHeader(request));
+            return response;
+        } catch (WebSocketVersionException e) {
+            Response response = new Response("426 Upgrade Required", Response.EMPTY);
+            response.addHeader(WebSocketHeaders.createVersionHeader(13));
+            return response;
         }
     }
 
-    protected void handleWebSocketException(WebSocketException e) {
-        log.error(e);
-        close(e.code());
+    protected boolean isUpgradableRequest(Request request) {
+        final String upgradeHeader = request.getHeader("Upgrade: ");
+        final String connectionHeader = request.getHeader("Connection: ");
+        return upgradeHeader != null && upgradeHeader.toLowerCase().contains("websocket") &&
+                connectionHeader != null && connectionHeader.toLowerCase().contains("upgrade");
     }
-
 }
