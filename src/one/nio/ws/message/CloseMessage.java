@@ -1,5 +1,7 @@
 package one.nio.ws.message;
 
+import one.nio.ws.io.Opcode;
+
 import static one.nio.util.JavaInternals.byteArrayOffset;
 import static one.nio.util.JavaInternals.unsafe;
 
@@ -28,20 +30,20 @@ public class CloseMessage extends Message<Short> {
     }
 
     public CloseMessage(Short code) {
-        super(code);
+        super(Opcode.CLOSE, code);
     }
 
     @Override
-    public byte[] bytesPayload() {
-        final byte[] result = new byte[2];
-        unsafe.putShort(result, byteArrayOffset, Short.reverseBytes(payload()));
-        return result;
+    public byte[] payload() {
+        byte code = payload.byteValue();
+        return new byte[]{
+                (byte) (code >>> 8), code
+        };
     }
 
     @Override
     public String toString() {
-        return "CloseMessage<" + payload() + ">";
+        return "CloseMessage<" + payload + ">";
     }
-
 }
 

@@ -6,18 +6,12 @@ import java.util.List;
 import one.nio.net.Session;
 import one.nio.net.Socket;
 import one.nio.ws.extension.Extension;
-import one.nio.ws.message.BinaryMessage;
-import one.nio.ws.message.CloseMessage;
 import one.nio.ws.message.Message;
-import one.nio.ws.message.PingMessage;
-import one.nio.ws.message.PongMessage;
-import one.nio.ws.message.TextMessage;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class WebSocketMessageWriter {
-
     private final Session session;
     private final List<Extension> extensions;
 
@@ -30,35 +24,16 @@ public class WebSocketMessageWriter {
         final Frame frame = createFrame(message);
         final byte[] payload = frame.getPayload();
         final byte[] header = serializeHeader(frame.getRsv(), frame.getOpcode(), payload);
-
         session.write(header, 0, header.length, Socket.MSG_MORE);
         session.write(payload, 0, payload.length);
     }
 
     private Frame createFrame(Message<?> message) throws IOException {
-        Frame frame = new Frame(getOpcode(message), message.bytesPayload());
-
+        Frame frame = new Frame(message.opcode(), message.payload());
         for (Extension extension : extensions) {
             extension.transformOutput(frame);
         }
-
         return frame;
-    }
-
-    private Opcode getOpcode(Message<?> message) {
-        if (message instanceof PingMessage) {
-            return Opcode.PING;
-        } else if (message instanceof PongMessage) {
-            return Opcode.PONG;
-        } else if (message instanceof TextMessage) {
-            return Opcode.TEXT;
-        } else if (message instanceof BinaryMessage) {
-            return Opcode.BINARY;
-        } else if (message instanceof CloseMessage) {
-            return Opcode.CLOSE;
-        }
-
-        throw new IllegalArgumentException("Unsupported opcode for " + message.getClass().getSimpleName());
     }
 
     private byte[] serializeHeader(int rsv, Opcode opcode, byte[] payload) {
@@ -94,5 +69,4 @@ public class WebSocketMessageWriter {
 
         return header;
     }
-
 }

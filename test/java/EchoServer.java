@@ -1,8 +1,5 @@
 import java.io.IOException;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import one.nio.http.HttpServerConfig;
 import one.nio.server.AcceptorConfig;
 import one.nio.ws.WebSocketServer;
@@ -10,7 +7,6 @@ import one.nio.ws.WebSocketSession;
 import one.nio.ws.message.TextMessage;
 
 public class EchoServer extends WebSocketServer {
-    private static final Log log = LogFactory.getLog(EchoServer.class);
 
     public EchoServer(HttpServerConfig config) throws IOException {
         super(config);

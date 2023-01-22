@@ -1,20 +1,22 @@
 package one.nio.ws.message;
 
+import one.nio.ws.io.Opcode;
+
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public abstract class Message<T> {
+    protected final Opcode opcode;
+    protected final T payload;
 
-    private final T payload;
-
-    protected Message(T payload) {
+    protected Message(Opcode opcode, T payload) {
+        this.opcode = opcode;
         this.payload = payload;
     }
 
-    public T payload() {
-        return payload;
+    public Opcode opcode() {
+        return opcode;
     }
 
-    public abstract byte[] bytesPayload();
-
+    public abstract byte[] payload();
 }
