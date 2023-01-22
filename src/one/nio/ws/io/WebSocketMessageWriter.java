@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 
 import one.nio.net.Session;
+import one.nio.net.Socket;
 import one.nio.ws.extension.Extension;
 import one.nio.ws.message.BinaryMessage;
 import one.nio.ws.message.CloseMessage;
@@ -25,16 +26,16 @@ public class WebSocketMessageWriter {
         this.extensions = extensions;
     }
 
-    public void write(Message message) throws IOException {
+    public void write(Message<?> message) throws IOException {
         final Frame frame = createFrame(message);
         final byte[] payload = frame.getPayload();
         final byte[] header = serializeHeader(frame.getRsv(), frame.getOpcode(), payload);
 
-        session.write(header, 0, header.length);
+        session.write(header, 0, header.length, Socket.MSG_MORE);
         session.write(payload, 0, payload.length);
     }
 
-    private Frame createFrame(Message message) throws IOException {
+    private Frame createFrame(Message<?> message) throws IOException {
         Frame frame = new Frame(getOpcode(message), message.bytesPayload());
 
         for (Extension extension : extensions) {
@@ -44,7 +45,7 @@ public class WebSocketMessageWriter {
         return frame;
     }
 
-    private Opcode getOpcode(Message message) {
+    private Opcode getOpcode(Message<?> message) {
         if (message instanceof PingMessage) {
             return Opcode.PING;
         } else if (message instanceof PongMessage) {
