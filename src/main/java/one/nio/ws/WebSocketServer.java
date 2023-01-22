@@ -14,16 +14,16 @@ import one.nio.ws.proto.message.TextMessage;
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class WebSocketServer extends HttpServer {
-    private final String baseUri;
+    private final WebSocketServerConfig config;
 
     public WebSocketServer(WebSocketServerConfig config, Object... routers) throws IOException {
         super(config, routers);
-        this.baseUri = config.websocketBaseUri;
+        this.config = config;
     }
 
     @Override
     public WebSocketSession createSession(Socket socket) {
-        return new WebSocketSession(socket, this, baseUri);
+        return new WebSocketSession(socket, this, config);
     }
 
     public void handleMessage(WebSocketSession session, PingMessage message) throws IOException {

@@ -1,7 +1,7 @@
 package one.nio.ws.proto.message;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import one.nio.ws.proto.Opcode;
 
@@ -10,26 +10,35 @@ import one.nio.ws.proto.Opcode;
  */
 public class MessageAggregator {
     private final Opcode opcode;
-    private final ByteArrayOutputStream stream;
+    private final List<byte[]> chunks;
+    private int payloadLength;
 
     public MessageAggregator(Opcode opcode) {
         this.opcode = opcode;
-        this.stream = new ByteArrayOutputStream();
+        this.chunks = new ArrayList<>();
     }
 
-    public void append(byte[] payload) throws IOException {
-        stream.write(payload);
+    public void append(byte[] payload) {
+        chunks.add(payload);
+        payloadLength += payload.length;
     }
 
     public Opcode getOpcode() {
         return opcode;
     }
 
-    public byte[] getPayload() throws IOException {
-        final byte[] result = stream.toByteArray();
+    public int getPayloadLength() {
+        return payloadLength;
+    }
 
-        stream.close();
-
+    public byte[] getPayload() {
+        final byte[] result = new byte[payloadLength];
+        int pos = 0;
+        for (byte[] chunk : chunks) {
+            int length = chunk.length;
+            System.arraycopy(chunk,0, result, pos, length);
+            pos += length;
+        }
         return result;
     }
 }

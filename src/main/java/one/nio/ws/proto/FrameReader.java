@@ -1,6 +1,7 @@
 package one.nio.ws.proto;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import one.nio.net.Session;
 
@@ -13,12 +14,15 @@ public class FrameReader {
 
     private final Session session;
     private final byte[] header;
+    private final int maxFramePayloadLength;
+
     private Frame frame;
     private int ptr;
 
-    public FrameReader(Session session) {
+    public FrameReader(Session session, int maxFramePayloadLength) {
         this.session = session;
         this.header = new byte[10];
+        this.maxFramePayloadLength = maxFramePayloadLength;
     }
 
     public Frame read() throws IOException {
@@ -39,20 +43,22 @@ public class FrameReader {
         }
 
         if (frame.getPayload() == null) {
-            int len = frame.getPayloadLength() == 126 ? 2 : frame.getPayloadLength() == 127 ? 8 : 0;
             int payloadLength = frame.getPayloadLength();
-
+            int len = payloadLength == 126 ? 2 : payloadLength == 127 ? 8 : 0;
             if (len > 0) {
                 ptr += session.read(header, ptr, len - ptr);
-
                 if (ptr < len) {
                     this.ptr = ptr;
                     return null;
                 }
-
                 payloadLength = byteArrayToInt(header, len);
             }
-
+            if (payloadLength < 0) {
+                throw new ProtocolException("negative payload length");
+            }
+            if (payloadLength > maxFramePayloadLength) {
+                throw new TooBigFrameException("payload can not be more than " + maxFramePayloadLength);
+            }
             frame.setPayload(new byte[payloadLength]);
             ptr = 0;
         }
@@ -65,9 +71,7 @@ public class FrameReader {
                 return null;
             }
 
-            byte[] mask = new byte[MASK_LENGTH];
-            System.arraycopy(header, 0, mask, 0, MASK_LENGTH);
-            frame.setMask(mask);
+            frame.setMask(Arrays.copyOf(header, MASK_LENGTH));
             ptr = 0;
         }
 
@@ -75,7 +79,6 @@ public class FrameReader {
             ptr += session.read(frame.getPayload(), ptr, frame.getPayloadLength() - ptr);
 
             if (ptr < frame.getPayloadLength()) {
-                this.frame = frame;
                 this.ptr = ptr;
                 return null;
             }
@@ -111,6 +114,7 @@ public class FrameReader {
                 throw new ProtocolException("control payload can not be fragmented");
             }
         }
+
         return new Frame(fin, opcode, rsv, payloadLength);
     }
 

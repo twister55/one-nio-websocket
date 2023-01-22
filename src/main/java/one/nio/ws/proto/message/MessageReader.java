@@ -2,11 +2,13 @@ package one.nio.ws.proto.message;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 import one.nio.net.Session;
 import one.nio.ws.proto.Frame;
 import one.nio.ws.proto.FrameReader;
 import one.nio.ws.proto.Opcode;
+import one.nio.ws.proto.TooBigFrameException;
 import one.nio.ws.proto.extension.Extension;
 
 /**
@@ -15,11 +17,13 @@ import one.nio.ws.proto.extension.Extension;
 public class MessageReader {
     private final FrameReader reader;
     private final List<Extension> extensions;
+    private int maxMessagePayloadLength;
     private MessageAggregator aggregator;
 
-    public MessageReader(Session session, List<Extension> extensions) {
-        this.reader = new FrameReader(session);
+    public MessageReader(Session session, List<Extension> extensions, int maxFramePayloadLength, int maxMessagePayloadLength) {
+        this.reader = new FrameReader(session, maxFramePayloadLength);
         this.extensions = extensions;
+        this.maxMessagePayloadLength = maxMessagePayloadLength;
     }
 
     public Message<?> read() throws IOException {
@@ -49,11 +53,12 @@ public class MessageReader {
     }
 
     private void saveFragment(Frame frame) throws IOException {
-        if (aggregator == null) {
-            aggregator = new MessageAggregator(frame.getOpcode());
+        byte[] payload = getPayload(frame);
+        aggregator = Optional.ofNullable(aggregator).orElseGet(() -> new MessageAggregator(frame.getOpcode()));
+        if (aggregator.getPayloadLength() + payload.length > this.maxMessagePayloadLength) {
+            throw new TooBigFrameException("payload can not be more than " + maxMessagePayloadLength);
         }
-
-        aggregator.append(getPayload(frame));
+        aggregator.append(payload);
     }
 
     private Message<?> createMessage(Frame frame) throws IOException {

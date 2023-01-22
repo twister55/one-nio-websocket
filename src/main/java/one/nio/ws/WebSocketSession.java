@@ -32,16 +32,15 @@ public class WebSocketSession extends HttpSession {
     protected static final Log log = LogFactory.getLog(WebSocketSession.class);
 
     private final WebSocketServer server;
-    private final String baseUri;
-
+    private final WebSocketServerConfig config;
     private List<Extension> extensions;
     private MessageReader reader;
     private MessageWriter writer;
 
-    public WebSocketSession(Socket socket, WebSocketServer server, String baseUri) {
+    public WebSocketSession(Socket socket, WebSocketServer server, WebSocketServerConfig config) {
         super(socket, server);
         this.server = server;
-        this.baseUri = baseUri;
+        this.config = config;
     }
 
     public void sendMessage(Message<?> message) throws IOException {
@@ -131,7 +130,7 @@ public class WebSocketSession extends HttpSession {
     }
 
     protected void handleRequest(Request request) throws IOException {
-        if (Objects.equals(this.baseUri, request.getURI())) {
+        if (Objects.equals(config.websocketBaseUri, request.getURI())) {
             validate(request);
             handshake(request);
             return;
@@ -184,7 +183,7 @@ public class WebSocketSession extends HttpSession {
                 }
                 response.addHeader(builder.toString());
             }
-            reader = new MessageReader(this, extensions);
+            reader = new MessageReader(this, extensions, config.maxFramePayloadLength, config.maxMessagePayloadLength);
             writer = new MessageWriter(this, extensions);
             sendResponse(response);
         } catch (WebSocketHandshakeException e) {
