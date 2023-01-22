@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>ru.odnoklassniki</groupId>
-    <artifactId>one-nio-ws</artifactId>
+    <artifactId>one-nio-websocket</artifactId>
     <version>1.0.0</version>
 
     <dependencies>
@@ -17,7 +17,6 @@
     </dependencies>
 
     <build>
-        <sourceDirectory>./src</sourceDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
