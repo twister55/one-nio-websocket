@@ -2,6 +2,7 @@ package one.nio.ws.proto.extension;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -180,10 +181,7 @@ public class PerMessageDeflate implements Extension {
             // To simulate removal, we just pass 4 bytes less to the new payload
             // if the frame is final and outputBytes ends with 0x00 0x00 0xff 0xff.
             if (endsWithTail(result)) {
-                int size = result.length - EOM_BYTES.length;
-                byte[] tmp = new byte[size];
-                System.arraycopy(result, 0, tmp, 0, tmp.length);
-                result = tmp;
+                result = Arrays.copyOf(result, result.length - EOM_BYTES.length);
             }
 
             if (!serverContextTakeover) {
