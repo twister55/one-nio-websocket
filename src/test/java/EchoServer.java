@@ -1,20 +1,15 @@
 import java.io.IOException;
 
-import one.nio.http.HttpServerConfig;
 import one.nio.server.AcceptorConfig;
 import one.nio.ws.WebSocketServer;
+import one.nio.ws.WebSocketServerConfig;
 import one.nio.ws.WebSocketSession;
 import one.nio.ws.proto.message.TextMessage;
 
 public class EchoServer extends WebSocketServer {
 
-    public EchoServer(HttpServerConfig config) throws IOException {
+    public EchoServer(WebSocketServerConfig config) throws IOException {
         super(config);
-    }
-
-    @Override
-    public boolean isWebSocketURI(String uri) {
-        return uri.equals("/echo");
     }
 
     @Override
@@ -28,8 +23,9 @@ public class EchoServer extends WebSocketServer {
         server.start();
     }
 
-    private static HttpServerConfig config() {
-        HttpServerConfig config = new HttpServerConfig();
+    private static WebSocketServerConfig config() {
+        WebSocketServerConfig config = new WebSocketServerConfig();
+        config.websocketBaseUri = "/echo";
         config.keepAlive = 30000;
         config.maxWorkers = 1000;
         config.queueTime = 50;
