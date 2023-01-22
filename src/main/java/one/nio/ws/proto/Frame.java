@@ -1,5 +1,7 @@
 package one.nio.ws.proto;
 
+import java.nio.ByteBuffer;
+
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
@@ -69,11 +71,18 @@ public class Frame {
 
     public void unmask() {
         if (mask != null) {
-            for (int i = 0; i < payload.length; i++) {
-                payload[i] = (byte) (payload[i] ^ mask[i % 4]);
+            final ByteBuffer buffer = ByteBuffer.wrap(payload);
+            final int intMask = ByteBuffer.wrap(mask).getInt();
+            while (buffer.remaining() >= 4) {
+                int pos = buffer.position();
+                buffer.putInt(pos, buffer.getInt() ^ intMask);
             }
-
-            mask = null;
+            while (buffer.hasRemaining()) {
+                int pos = buffer.position();
+                buffer.put(pos, (byte) (buffer.get() ^ mask[pos % 4]));
+            }
+            this.payload = buffer.array();
+            this.mask = null;
         }
     }
 }
