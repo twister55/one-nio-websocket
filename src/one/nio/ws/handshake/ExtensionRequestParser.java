@@ -2,7 +2,6 @@ package one.nio.ws.handshake;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  *  The relevant ABNF for the Sec-WebSocket-Extensions is as follows:
@@ -22,16 +21,14 @@ import java.util.regex.Pattern;
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class ExtensionRequestParser {
-    private static final Pattern COMMA_PATTERN = Pattern.compile(",");
-    private static final Pattern SEMICOLON_PATTERN = Pattern.compile(";");
 
     public static List<ExtensionRequest> parse(String header) {
         final List<ExtensionRequest> result = new ArrayList<>();
 
         // Step one, split the header into individual extensions using ',' as a separator
-        for (String unparsedExtension : COMMA_PATTERN.split(header)) {
+        for (String unparsedExtension : header.split(",")) {
             // Step two, split the extension into the registered name and parameter/value pairs
-            final String[] unparsedParameters = SEMICOLON_PATTERN.split(unparsedExtension);
+            final String[] unparsedParameters = unparsedExtension.split(";");
             final ExtensionRequest request = new ExtensionRequest(unparsedParameters[0].trim());
 
             for (int i = 1; i < unparsedParameters.length; i++) {
