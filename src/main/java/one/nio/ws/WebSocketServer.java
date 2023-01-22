@@ -3,6 +3,8 @@ package one.nio.ws;
 import java.io.IOException;
 
 import one.nio.http.HttpServer;
+import one.nio.http.HttpSession;
+import one.nio.http.Request;
 import one.nio.net.Socket;
 import one.nio.ws.proto.message.BinaryMessage;
 import one.nio.ws.proto.message.CloseMessage;
@@ -24,6 +26,16 @@ public class WebSocketServer extends HttpServer {
     @Override
     public WebSocketSession createSession(Socket socket) {
         return new WebSocketSession(socket, this, config);
+    }
+
+    @Override
+    public void handleRequest(Request request, HttpSession session) throws IOException {
+        if (config.isWebSocketURI(request.getURI())) {
+            ((WebSocketSession) session).handshake(request);
+            return;
+        }
+
+        super.handleRequest(request, session);
     }
 
     public void handleMessage(WebSocketSession session, PingMessage message) throws IOException {

@@ -11,6 +11,8 @@ import one.nio.util.Base64;
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
 public class WebSocketHeaders {
+    public final static String CONNECTION = "Connection: ";
+    public final static String UPGRADE = "Upgrade: ";
     public final static String KEY = "Sec-WebSocket-Key: ";
     public final static String VERSION = "Sec-WebSocket-Version: ";
     public final static String ACCEPT = "Sec-WebSocket-Accept: ";
@@ -24,6 +26,13 @@ public class WebSocketHeaders {
             throw new InternalError("SHA-1 not supported on this platform");
         }
     });
+
+    public static boolean isUpgradableRequest(Request request) {
+        final String upgradeHeader = request.getHeader(WebSocketHeaders.UPGRADE);
+        final String connectionHeader = request.getHeader(WebSocketHeaders.CONNECTION);
+        return upgradeHeader != null && upgradeHeader.toLowerCase().contains("websocket") &&
+                connectionHeader != null && connectionHeader.toLowerCase().contains("upgrade");
+    }
 
     public static String createVersionHeader(int version) {
         return VERSION + version;

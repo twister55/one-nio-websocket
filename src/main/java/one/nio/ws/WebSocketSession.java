@@ -1,9 +1,8 @@
 package one.nio.ws;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -33,7 +32,8 @@ public class WebSocketSession extends HttpSession {
 
     private final WebSocketServer server;
     private final WebSocketServerConfig config;
-    private List<Extension> extensions;
+    private final List<Extension> extensions;
+
     private MessageReader reader;
     private MessageWriter writer;
 
@@ -41,13 +41,7 @@ public class WebSocketSession extends HttpSession {
         super(socket, server);
         this.server = server;
         this.config = config;
-    }
-
-    public void sendMessage(Message<?> message) throws IOException {
-        if (writer == null) {
-            throw new IllegalArgumentException("Web socket message was sent before handshake");
-        }
-        writer.write(message);
+        this.extensions = new ArrayList<>();
     }
 
     @Override
@@ -79,23 +73,42 @@ public class WebSocketSession extends HttpSession {
         }
     }
 
-    /*
-     * FIXME нужен отдельный метод в HttpSession чтобы не копипастить
-     *  protected void handleRequest(Request request) {
-     *      server.handleRequest(request, this);
-     *  }
-     */
-    @Override
-    protected void handleParsedRequest() throws IOException {
-        if (handling == null) {
-            handleRequest(handling = parsing);
-        } else if (pipeline.size() < 256) {
-            pipeline.addLast(parsing);
-        } else {
-            throw new IOException("Pipeline length exceeded");
+    public void handshake(Request request) throws IOException {
+        final String version = request.getHeader(WebSocketHeaders.VERSION);
+        if (!"13".equals(version)) {
+            throw new WebSocketVersionException(version);
         }
-        parsing = null;
-        requestBodyOffset = 0;
+        if (request.getMethod() != Request.METHOD_GET) {
+            throw new WebSocketHandshakeException("Not a WebSocket handshake request: only GET method supported");
+        }
+        if (request.getHeader(WebSocketHeaders.KEY) == null) {
+            throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing websocket key");
+        }
+        if (!WebSocketHeaders.isUpgradableRequest(request)) {
+            throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing upgrade");
+        }
+        sendHandshakeResponse(request);
+    }
+
+    public void sendMessage(Message<?> message) throws IOException {
+        if (writer == null) {
+            throw new IllegalArgumentException("Web socket message was sent before handshake");
+        }
+        writer.write(message);
+    }
+
+    protected void handleMessage(WebSocketSession session, Message<?> message) throws IOException {
+        if (message instanceof PingMessage) {
+            server.handleMessage(session, (PingMessage) message);
+        } else if (message instanceof PongMessage) {
+            server.handleMessage(session, (PongMessage) message);
+        } else if (message instanceof TextMessage) {
+            server.handleMessage(session, (TextMessage) message);
+        } else if (message instanceof BinaryMessage) {
+            server.handleMessage(session, (BinaryMessage) message);
+        } else if (message instanceof CloseMessage) {
+            server.handleMessage(session, (CloseMessage) message);
+        }
     }
 
     @Override
@@ -129,46 +142,7 @@ public class WebSocketSession extends HttpSession {
         }
     }
 
-    protected void handleRequest(Request request) throws IOException {
-        if (Objects.equals(config.websocketBaseUri, request.getURI())) {
-            validate(request);
-            handshake(request);
-            return;
-        }
-        server.handleRequest(request, this);
-    }
-
-    protected void handleMessage(WebSocketSession session, Message<?> message) throws IOException {
-        if (message instanceof PingMessage) {
-            server.handleMessage(session, (PingMessage) message);
-        } else if (message instanceof PongMessage) {
-            server.handleMessage(session, (PongMessage) message);
-        } else if (message instanceof TextMessage) {
-            server.handleMessage(session, (TextMessage) message);
-        } else if (message instanceof BinaryMessage) {
-            server.handleMessage(session, (BinaryMessage) message);
-        } else if (message instanceof CloseMessage) {
-            server.handleMessage(session, (CloseMessage) message);
-        }
-    }
-
-    protected void validate(Request request) {
-        final String version = request.getHeader(WebSocketHeaders.VERSION);
-        if (!"13".equals(version)) {
-            throw new WebSocketVersionException(version);
-        }
-        if (request.getMethod() != Request.METHOD_GET) {
-            throw new WebSocketHandshakeException("Not a WebSocket handshake request: only GET method supported");
-        }
-        if (request.getHeader(WebSocketHeaders.KEY) == null) {
-            throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing websocket key");
-        }
-        if (!isUpgradableRequest(request)) {
-            throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing upgrade");
-        }
-    }
-
-    protected void handshake(Request request) throws IOException {
+    protected void sendHandshakeResponse(Request request) throws IOException {
         try {
             final Response response = createResponse(request);
             final String extensionsHeader = request.getHeader(WebSocketHeaders.EXTENSIONS);
@@ -191,6 +165,7 @@ public class WebSocketSession extends HttpSession {
 
             reader = new MessageReader(this, extensions, config.maxFramePayloadLength, config.maxMessagePayloadLength);
             writer = new MessageWriter(this, extensions);
+
             sendResponse(response);
         } catch (WebSocketHandshakeException e) {
             sendError(Response.BAD_REQUEST, e.getMessage());
@@ -216,12 +191,5 @@ public class WebSocketSession extends HttpSession {
             response.addHeader(WebSocketHeaders.createVersionHeader(13));
             return response;
         }
-    }
-
-    protected boolean isUpgradableRequest(Request request) {
-        final String upgradeHeader = request.getHeader("Upgrade: ");
-        final String connectionHeader = request.getHeader("Connection: ");
-        return upgradeHeader != null && upgradeHeader.toLowerCase().contains("websocket") &&
-                connectionHeader != null && connectionHeader.toLowerCase().contains("upgrade");
     }
 }
