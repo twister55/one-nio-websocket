@@ -27,7 +27,7 @@ public class PerMessageDeflate implements Extension {
 
     private final Inflater inflater = new Inflater(true);
     private final byte[] inputBuffer = new byte[2048];
-    private volatile boolean skipDecompression = false;
+    private boolean skipDecompression = false;
 
     private final Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true);
     private final byte[] outputBuffer = new byte[2048];
