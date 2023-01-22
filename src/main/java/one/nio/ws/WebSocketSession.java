@@ -171,18 +171,24 @@ public class WebSocketSession extends HttpSession {
     protected void handshake(Request request) throws IOException {
         try {
             final Response response = createResponse(request);
-            String extensionsHeader = request.getHeader("Sec-WebSocket-Extensions: ");
-            extensions = ExtensionRequestParser.parse(extensionsHeader).stream()
-                    .map(this::createExtension)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toList());
-            if (!extensions.isEmpty()) {
-                StringBuilder builder = new StringBuilder("Sec-WebSocket-Extensions: ");
-                for (Extension extension : extensions) {
+            final String extensionsHeader = request.getHeader(WebSocketHeaders.EXTENSIONS);
+            final StringBuilder builder = new StringBuilder(WebSocketHeaders.EXTENSIONS);
+
+            for (ExtensionRequest extensionRequest : ExtensionRequestParser.parse(extensionsHeader)) {
+                Extension extension = createExtension(extensionRequest);
+                if (extension != null) {
+                    extensions.add(extension);
+                    if (extensions.size() > 1) {
+                        builder.append(',');
+                    }
                     extension.appendResponseHeaderValue(builder);
                 }
+            }
+
+            if (!extensions.isEmpty()) {
                 response.addHeader(builder.toString());
             }
+
             reader = new MessageReader(this, extensions, config.maxFramePayloadLength, config.maxMessagePayloadLength);
             writer = new MessageWriter(this, extensions);
             sendResponse(response);
