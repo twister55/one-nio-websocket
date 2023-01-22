@@ -13,7 +13,7 @@ public class BinaryMessage extends Message<byte[]> {
     }
 
     protected BinaryMessage(Opcode opcode, byte[] payload) {
-        super(Opcode.BINARY, payload);
+        super(opcode, payload);
     }
 
     @Override
