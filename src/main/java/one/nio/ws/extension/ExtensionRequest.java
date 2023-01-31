@@ -1,4 +1,4 @@
-package one.nio.ws.proto.extension;
+package one.nio.ws.extension;
 
 import java.util.HashMap;
 import java.util.Map;

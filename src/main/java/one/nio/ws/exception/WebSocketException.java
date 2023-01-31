@@ -1,4 +1,4 @@
-package one.nio.ws;
+package one.nio.ws.exception;
 
 import java.io.IOException;
 

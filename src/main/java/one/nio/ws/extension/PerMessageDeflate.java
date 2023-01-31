@@ -1,4 +1,4 @@
-package one.nio.ws.proto.extension;
+package one.nio.ws.extension;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -8,8 +8,8 @@ import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
 
-import one.nio.ws.WebSocketHandshakeException;
-import one.nio.ws.proto.Frame;
+import one.nio.ws.exception.HandshakeException;
+import one.nio.ws.frame.Frame;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
@@ -44,14 +44,14 @@ public class PerMessageDeflate implements Extension {
                 if (serverContextTakeover) {
                     serverContextTakeover = false;
                 } else {
-                    throw new WebSocketHandshakeException("Duplicate definition of the server_no_context_takeover extension parameter");
+                    throw new HandshakeException("Duplicate definition of the server_no_context_takeover extension parameter");
                 }
             }
             if (CLIENT_NO_CONTEXT_TAKEOVER.equals(name)) {
                 if (clientContextTakeover) {
                     clientContextTakeover = false;
                 } else {
-                    throw new WebSocketHandshakeException("Duplicate definition of the client_no_context_takeover extension parameter");
+                    throw new HandshakeException("Duplicate definition of the client_no_context_takeover extension parameter");
                 }
             }
         }

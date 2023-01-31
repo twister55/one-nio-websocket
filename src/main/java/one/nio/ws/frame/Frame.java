@@ -1,4 +1,4 @@
-package one.nio.ws.proto;
+package one.nio.ws.frame;
 
 import java.nio.ByteBuffer;
 

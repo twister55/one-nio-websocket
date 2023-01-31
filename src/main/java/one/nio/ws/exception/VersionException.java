@@ -1,11 +1,11 @@
-package one.nio.ws;
+package one.nio.ws.exception;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
  */
-public class WebSocketVersionException extends WebSocketHandshakeException {
+public class VersionException extends HandshakeException {
 
-    public WebSocketVersionException(String version) {
+    public VersionException(String version) {
         super("Unsupported websocket version " + version);
     }
 }

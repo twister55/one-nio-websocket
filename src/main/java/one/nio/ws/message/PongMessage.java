@@ -1,7 +1,7 @@
-package one.nio.ws.proto.message;
+package one.nio.ws.message;
 
 import one.nio.http.Response;
-import one.nio.ws.proto.Opcode;
+import one.nio.ws.frame.Opcode;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>

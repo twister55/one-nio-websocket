@@ -1,8 +1,8 @@
-package one.nio.ws.proto.message;
+package one.nio.ws.message;
 
 import java.nio.charset.StandardCharsets;
 
-import one.nio.ws.proto.Opcode;
+import one.nio.ws.frame.Opcode;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>

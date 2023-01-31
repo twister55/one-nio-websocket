@@ -6,11 +6,11 @@ import one.nio.http.HttpServer;
 import one.nio.http.HttpSession;
 import one.nio.http.Request;
 import one.nio.net.Socket;
-import one.nio.ws.proto.message.BinaryMessage;
-import one.nio.ws.proto.message.CloseMessage;
-import one.nio.ws.proto.message.PingMessage;
-import one.nio.ws.proto.message.PongMessage;
-import one.nio.ws.proto.message.TextMessage;
+import one.nio.ws.message.BinaryMessage;
+import one.nio.ws.message.CloseMessage;
+import one.nio.ws.message.PingMessage;
+import one.nio.ws.message.PongMessage;
+import one.nio.ws.message.TextMessage;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>

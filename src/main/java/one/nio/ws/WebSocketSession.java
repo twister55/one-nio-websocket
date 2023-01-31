@@ -11,18 +11,21 @@ import one.nio.http.HttpSession;
 import one.nio.http.Request;
 import one.nio.http.Response;
 import one.nio.net.Socket;
-import one.nio.ws.proto.extension.Extension;
-import one.nio.ws.proto.extension.ExtensionRequest;
-import one.nio.ws.proto.extension.ExtensionRequestParser;
-import one.nio.ws.proto.extension.PerMessageDeflate;
-import one.nio.ws.proto.message.BinaryMessage;
-import one.nio.ws.proto.message.CloseMessage;
-import one.nio.ws.proto.message.Message;
-import one.nio.ws.proto.message.MessageReader;
-import one.nio.ws.proto.message.MessageWriter;
-import one.nio.ws.proto.message.PingMessage;
-import one.nio.ws.proto.message.PongMessage;
-import one.nio.ws.proto.message.TextMessage;
+import one.nio.ws.exception.WebSocketException;
+import one.nio.ws.exception.HandshakeException;
+import one.nio.ws.exception.VersionException;
+import one.nio.ws.extension.Extension;
+import one.nio.ws.extension.ExtensionRequest;
+import one.nio.ws.extension.ExtensionRequestParser;
+import one.nio.ws.extension.PerMessageDeflate;
+import one.nio.ws.message.BinaryMessage;
+import one.nio.ws.message.CloseMessage;
+import one.nio.ws.message.Message;
+import one.nio.ws.message.MessageReader;
+import one.nio.ws.message.MessageWriter;
+import one.nio.ws.message.PingMessage;
+import one.nio.ws.message.PongMessage;
+import one.nio.ws.message.TextMessage;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
@@ -76,23 +79,23 @@ public class WebSocketSession extends HttpSession {
     public void handshake(Request request) throws IOException {
         final String version = request.getHeader(WebSocketHeaders.VERSION);
         if (!"13".equals(version)) {
-            throw new WebSocketVersionException(version);
+            throw new VersionException(version);
         }
         if (request.getMethod() != Request.METHOD_GET) {
-            throw new WebSocketHandshakeException("Not a WebSocket handshake request: only GET method supported");
+            throw new HandshakeException("only GET method supported");
         }
         if (request.getHeader(WebSocketHeaders.KEY) == null) {
-            throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing websocket key");
+            throw new HandshakeException("missing websocket key");
         }
         if (!WebSocketHeaders.isUpgradableRequest(request)) {
-            throw new WebSocketHandshakeException("Not a WebSocket handshake request: missing upgrade");
+            throw new HandshakeException("missing upgrade header");
         }
         sendHandshakeResponse(request);
     }
 
     public void sendMessage(Message<?> message) throws IOException {
         if (writer == null) {
-            throw new IllegalArgumentException("Web socket message was sent before handshake");
+            throw new IllegalStateException("websocket message was sent before handshake");
         }
         writer.write(message);
     }
@@ -125,7 +128,7 @@ public class WebSocketSession extends HttpSession {
         try {
             sendMessage(new CloseMessage(code));
         } catch (Exception e) {
-            log.warn("Error while sending closing frame. Closing will be not clean", e);
+            log.warn("error while sending closing frame", e);
         } finally {
             close();
         }
@@ -134,9 +137,7 @@ public class WebSocketSession extends HttpSession {
     @Override
     public void close() {
         try {
-            for (Extension extension : extensions) {
-                extension.close();
-            }
+            extensions.forEach(Extension::close);
         } finally {
             super.close();
         }
@@ -167,7 +168,7 @@ public class WebSocketSession extends HttpSession {
             writer = new MessageWriter(this, extensions);
 
             sendResponse(response);
-        } catch (WebSocketHandshakeException e) {
+        } catch (HandshakeException e) {
             sendError(Response.BAD_REQUEST, e.getMessage());
         }
     }
@@ -186,7 +187,7 @@ public class WebSocketSession extends HttpSession {
             response.addHeader("Connection: Upgrade");
             response.addHeader(WebSocketHeaders.createAcceptHeader(request));
             return response;
-        } catch (WebSocketVersionException e) {
+        } catch (VersionException e) {
             Response response = new Response("426 Upgrade Required", Response.EMPTY);
             response.addHeader(WebSocketHeaders.createVersionHeader(13));
             return response;

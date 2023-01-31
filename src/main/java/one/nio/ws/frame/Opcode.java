@@ -1,4 +1,4 @@
-package one.nio.ws.proto;
+package one.nio.ws.frame;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>

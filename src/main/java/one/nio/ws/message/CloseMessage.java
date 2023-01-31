@@ -1,6 +1,6 @@
-package one.nio.ws.proto.message;
+package one.nio.ws.message;
 
-import one.nio.ws.proto.Opcode;
+import one.nio.ws.frame.Opcode;
 
 import static one.nio.util.JavaInternals.byteArrayOffset;
 import static one.nio.util.JavaInternals.unsafe;

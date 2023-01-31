@@ -1,8 +1,8 @@
-package one.nio.ws.proto.extension;
+package one.nio.ws.extension;
 
 import java.io.IOException;
 
-import one.nio.ws.proto.Frame;
+import one.nio.ws.frame.Frame;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>

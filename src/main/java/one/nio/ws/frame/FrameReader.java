@@ -1,9 +1,13 @@
-package one.nio.ws.proto;
+package one.nio.ws.frame;
 
 import java.io.IOException;
 import java.util.Arrays;
 
 import one.nio.net.Session;
+import one.nio.ws.exception.ProtocolException;
+import one.nio.ws.exception.TooBigException;
+import one.nio.ws.exception.CannotAcceptException;
+import one.nio.ws.exception.WebSocketException;
 
 /**
  * @author <a href="mailto:vadim.yelisseyev@gmail.com">Vadim Yelisseyev</a>
@@ -57,7 +61,7 @@ public class FrameReader {
                 throw new ProtocolException("negative payload length");
             }
             if (payloadLength > maxFramePayloadLength) {
-                throw new TooBigFrameException("payload can not be more than " + maxFramePayloadLength);
+                throw new TooBigException("payload can not be more than " + maxFramePayloadLength);
             }
             frame.setPayload(new byte[payloadLength]);
             ptr = 0;
@@ -90,7 +94,7 @@ public class FrameReader {
         return frame;
     }
 
-    private Frame createFrame(byte[] header) throws ProtocolException {
+    private Frame createFrame(byte[] header) throws WebSocketException {
         byte b0 = header[0];
         byte b1 = header[1];
 
@@ -104,7 +108,7 @@ public class FrameReader {
         }
 
         if (opcode == null) {
-            throw new NotAcceptableMessageException("invalid opcode (" + (b0 & 0x0F) + ')');
+            throw new CannotAcceptException("invalid opcode (" + (b0 & 0x0F) + ')');
         } else if (opcode.isControl()) {
             if (payloadLength > 125) {
                 throw new ProtocolException("control payload too big");
