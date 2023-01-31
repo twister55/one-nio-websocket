@@ -4,7 +4,7 @@ import one.nio.server.AcceptorConfig;
 import one.nio.ws.WebSocketServer;
 import one.nio.ws.WebSocketServerConfig;
 import one.nio.ws.WebSocketSession;
-import one.nio.ws.proto.message.TextMessage;
+import one.nio.ws.message.TextMessage;
 
 public class EchoServer extends WebSocketServer {
 
@@ -19,7 +19,7 @@ public class EchoServer extends WebSocketServer {
 
     public static void main(String[] args) throws IOException {
         EchoServer server = new EchoServer(config());
-        Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
+        server.registerShutdownHook();
         server.start();
     }
 
@@ -35,12 +35,11 @@ public class EchoServer extends WebSocketServer {
 
     private static AcceptorConfig[] acceptors() {
         AcceptorConfig config = new AcceptorConfig();
-        config.port = 8000;
+        config.port = 8002;
         config.backlog = 10000;
         config.deferAccept = true;
         return new AcceptorConfig[] {
                 config
         };
     }
-
 }
