@@ -17,6 +17,7 @@ public class WebSocketHeaders {
     public final static String VERSION = "Sec-WebSocket-Version: ";
     public final static String ACCEPT = "Sec-WebSocket-Accept: ";
     public final static String EXTENSIONS = "Sec-WebSocket-Extensions: ";
+    public final static String PROTOCOL = "Sec-WebSocket-Protocol: ";
 
     private static final String ACCEPT_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     private static final ThreadLocal<MessageDigest> SHA1 = ThreadLocal.withInitial(() -> {

@@ -146,38 +146,14 @@ public class WebSocketSession extends HttpSession {
     protected void sendHandshakeResponse(Request request) throws IOException {
         try {
             final Response response = createResponse(request);
-            final String extensionsHeader = request.getHeader(WebSocketHeaders.EXTENSIONS);
-            final StringBuilder builder = new StringBuilder(WebSocketHeaders.EXTENSIONS);
-
-            for (ExtensionRequest extensionRequest : ExtensionRequestParser.parse(extensionsHeader)) {
-                Extension extension = createExtension(extensionRequest);
-                if (extension != null) {
-                    extensions.add(extension);
-                    if (extensions.size() > 1) {
-                        builder.append(',');
-                    }
-                    extension.appendResponseHeaderValue(builder);
-                }
-            }
-
-            if (!extensions.isEmpty()) {
-                response.addHeader(builder.toString());
-            }
-
+            processExtensions(request, response);
+            processProtocol(request, response);
             reader = new MessageReader(this, extensions, config.maxFramePayloadLength, config.maxMessagePayloadLength);
             writer = new MessageWriter(this, extensions);
-
             sendResponse(response);
         } catch (HandshakeException e) {
             sendError(Response.BAD_REQUEST, e.getMessage());
         }
-    }
-
-    protected Extension createExtension(ExtensionRequest request) {
-        if (PerMessageDeflate.NAME.equals(request.getName())) {
-            return PerMessageDeflate.negotiate(request.getParameters());
-        }
-        return null;
     }
 
     protected Response createResponse(Request request) {
@@ -192,5 +168,44 @@ public class WebSocketSession extends HttpSession {
             response.addHeader(WebSocketHeaders.createVersionHeader(13));
             return response;
         }
+    }
+
+    protected void processProtocol(Request request, Response response) {
+        final String clientProtocols = request.getHeader(WebSocketHeaders.PROTOCOL);
+        if (clientProtocols != null) {
+            for (String protocol : clientProtocols.split(",")) {
+                if (config.isSupportedProtocol(protocol)) {
+                    response.addHeader(WebSocketHeaders.PROTOCOL + protocol);
+                    break;
+                }
+            }
+        }
+    }
+
+    protected void processExtensions(Request request, Response response) {
+        final StringBuilder responseHeaderBuilder = new StringBuilder(WebSocketHeaders.EXTENSIONS);
+        final List<ExtensionRequest> extensionRequests = ExtensionRequestParser.parse(
+                request.getHeader(WebSocketHeaders.EXTENSIONS)
+        );
+        for (ExtensionRequest extensionRequest : extensionRequests) {
+            Extension extension = createExtension(extensionRequest);
+            if (extension != null) {
+                extensions.add(extension);
+                if (extensions.size() > 1) {
+                    responseHeaderBuilder.append(',');
+                }
+                extension.appendResponseHeaderValue(responseHeaderBuilder);
+            }
+        }
+        if (!extensions.isEmpty()) {
+            response.addHeader(responseHeaderBuilder.toString());
+        }
+    }
+
+    protected Extension createExtension(ExtensionRequest request) {
+        if (PerMessageDeflate.NAME.equals(request.getName())) {
+            return PerMessageDeflate.negotiate(request.getParameters());
+        }
+        return null;
     }
 }

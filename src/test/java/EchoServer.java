@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.util.Collections;
 
 import one.nio.server.AcceptorConfig;
 import one.nio.ws.WebSocketServer;
@@ -25,6 +26,7 @@ public class EchoServer extends WebSocketServer {
 
     private static WebSocketServerConfig config() {
         WebSocketServerConfig config = new WebSocketServerConfig();
+        config.supportedProtocols = Collections.singleton("echo1");
         config.websocketBaseUri = "/echo";
         config.keepAlive = 30000;
         config.maxWorkers = 1000;

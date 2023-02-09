@@ -53,7 +53,7 @@
     });
 
     function connect() {
-        ws = new WebSocket('ws://localhost:8002/echo', ['soap', 'wamp']);
+        ws = new WebSocket('ws://localhost:8002/echo', ['echo1']);
         log('warning', 'Connecting');
         ws.addEventListener('open', () => {
             form.connectButton.classList.remove('show');
